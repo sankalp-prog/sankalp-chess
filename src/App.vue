@@ -2,39 +2,26 @@
   <div id="grid">
     <div v-for="squareId in 64" :key="squareId">
       <div
-        id=""
         class="square"
         :class="oddOrEven(squareId)"
-        @drop.prevent="drop"
+        @drop.prevent="drop($event, squareId - 1)"
         @dragover.prevent
       >
-        {{ squareId - 1}}
         <img
           v-if="chessBoard[squareId - 1].piece !== ''"
           :id="squareId"
           :src="getPieceImage(chessBoard[squareId - 1])"
           width="50"
           height="50"
+          :data-piece="chessBoard[squareId - 1].piece"
+          :data-player="chessBoard[squareId - 1].player"
           draggable="true"
-          @dragstart="drag"
+          @dragstart="drag($event, squareId - 1)"
         />
       </div>
     </div>
   </div>
 </template>
-<!-- https://assets-themes.chess.com/image/ejgfv/150/bb.png  : Black Bishop-->
-<!-- https://assets-themes.chess.com/image/ejgfv/150/bn.png  : Black Knight -->
-<!-- https://assets-themes.chess.com/image/ejgfv/150/bk.png  : Black King-->
-<!-- https://assets-themes.chess.com/image/ejgfv/150/bq.png : Black Queen -->
-<!-- https://assets-themes.chess.com/image/ejgfv/150/bp.png  : Black Pawn -->
-<!-- https://assets-themes.chess.com/image/ejgfv/150/br.png : Black Rook-->
-
-<!-- https://assets-themes.chess.com/image/ejgfv/150/wb.png -->
-<!-- https://assets-themes.chess.com/image/ejgfv/150/wk.png -->
-<!-- https://assets-themes.chess.com/image/ejgfv/150/wn.png -->
-<!-- https://assets-themes.chess.com/image/ejgfv/150/wp.png -->
-<!-- https://assets-themes.chess.com/image/ejgfv/150/wq.png -->
-<!-- https://assets-themes.chess.com/image/ejgfv/150/wr.png -->
 
 <script>
 function coordinates(squareId) {
@@ -325,19 +312,78 @@ export default {
     };
   },
   methods: {
-    drag(event) {
-      event.dataTransfer.setData("text", event.target.id);
+    drag(event, squareId) {
+      // event.dataTransfer.setData("piece", event.target.dataset.piece);
+      // event.dataTransfer.setData("player", event.target.dataset.player);
+      event.dataTransfer.setData("squareId", squareId);
     },
-    drop(event) {
-      let data = event.dataTransfer.getData("text");
-      event.target.appendChild(document.getElementById(data));
+    canPieceMove(sourceSquareId, targetSquareId) {
+      const targetPiece = this.chessBoard[targetSquareId].piece;
+      const targetPlayer = this.chessBoard[targetSquareId].player;
+      const [targetRow, targetCol] = coordinates(targetSquareId);
+      const sourcePiece = this.chessBoard[sourceSquareId].piece;
+      const sourcePlayer = this.chessBoard[sourceSquareId].player;
+      const [sourceRow, sourceCol] = coordinates(sourceSquareId);
+
+      if (targetPlayer === sourcePlayer) {
+        console.warn("Two pieces of the same player");
+        return false;
+      }
+      // for white pawns
+      if (sourcePlayer === "white") {
+        if (targetCol === sourceCol) {
+          if (sourceRow === 7 && targetRow === 5) {
+            return true;
+          }
+          if (targetRow === sourceRow - 1) {
+            return true;
+          }
+          console.warn("Pawns can't go so far ahead.");
+        } else {
+          console.warn("Pawns must move forward");
+        }
+      }
+
+      // for black pawns
+      if (sourcePlayer === "black") {
+        if (targetCol === sourceCol) {
+          if (sourceRow === 2 && targetRow === 4) {
+            return true;
+          }
+          if (targetRow === sourceRow + 1) {
+            return true;
+          }
+          console.warn("Pawns can't go so far ahead.");
+        } else {
+          console.warn("Pawns must move forward");
+        }
+      }
+      return false;
+    },
+    drop(event, targetSquareId) {
+      const sourceSquareId = +event.dataTransfer.getData("squareId");
+      const targetPiece = this.chessBoard[targetSquareId].piece;
+      const targetPlayer = this.chessBoard[targetSquareId].player;
+      const [targetRow, targetCol] = coordinates(targetSquareId);
+      const sourcePiece = this.chessBoard[sourceSquareId].piece;
+      const sourcePlayer = this.chessBoard[sourceSquareId].player;
+      const [sourceRow, sourceCol] = coordinates(sourceSquareId);
+
+      if (this.canPieceMove(sourceSquareId, targetSquareId)) {
+        this.chessBoard[targetSquareId].piece = sourcePiece;
+        this.chessBoard[targetSquareId].player = sourcePlayer;
+        this.chessBoard[sourceSquareId].piece = "";
+        this.chessBoard[sourceSquareId].player = "";
+      }
     },
     oddOrEven(squareId) {
       const [row, col] = coordinates(squareId);
       return row % 2 === col % 2 ? "odd" : "even";
     },
     getPieceImage(square) {
-      return square.player === "white" ? whiteImages[square.piece] : blackImages[square.piece];
+      return square.player === "white"
+        ? whiteImages[square.piece]
+        : blackImages[square.piece];
     },
   },
 };
